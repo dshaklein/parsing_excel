@@ -17,13 +17,13 @@ def fix_card_numbers(sheet, key):
 def fix_phones(sheet, key):
     phones = defaultdict(int)
     for i, col in enumerate(sheet[key]):
-        if i == 0: continue
+        if i == 0 or i in rows_to_pass: continue
         phone = str(col.value)
         phone = re.sub('[^\d]', '', phone)
         if phone is None or phone == '':
             col.value = 'NULL'
             continue
-        if re.match('^[^7,8]$\d{9}$', phone):
+        if re.match('^[^78]\d{9}$', phone):
             phone = '7{}'.format(phone)
             print('10 digit number + 7: {}'.format(phone))
         if re.match('^8\d{10}$', phone):
@@ -42,11 +42,14 @@ def fix_phones(sheet, key):
 def fix_emails(sheet, key):
     emails = defaultdict(int)
     for i, col in enumerate(sheet[key]):
-        if i == 0: continue
+        if i == 0 or i in rows_to_pass: continue
         email = col.value
         if email is None or type(email) == int or '@' not in email:
             col.value = 'NULL'
             continue
+        awoid_domains = ['bj-gold.ru', 'bronnitsy.com', 'noemail.ru', 'no@mail.ru']
+        if any(domain in email for domain in awoid_domains):
+            rows_to_pass.add(i)
         re.sub('\s+', '', email)
         emails[email] += 1
         col.value = email
@@ -57,12 +60,12 @@ def find_equal(sheet, key, items):
     repeated_items = {k: value for k, value in items.items() if value > 1}
     repeated_rows = defaultdict(list)
     for i, col in enumerate(sheet[key]):
-        if i == 0: continue
+        if i == 0 or i in rows_to_pass: continue
         item = str(col.value)
         if item in repeated_items.keys():
             repeated_rows[item].append(i)
     for k in repeated_rows:
-        repeated_rows[k].sort()
+        repeated_rows[k].sort(key=lambda index: sheet[index][0].value)
     return repeated_rows
 
 
@@ -87,7 +90,10 @@ def merge_data(sheet, repeated_data):
 
 
 if __name__ == '__main__':
+
     original = load_workbook('main.xlsx')
+
+    fix_card_numbers(original['cols-2-upload'], 'A')
     phones_2 = fix_phones(original['cols-2-upload'], 'F')
     phones_1 = fix_phones(original['cols-2-upload'], 'E')
     emails = fix_emails(original['cols-2-upload'], 'D')
@@ -99,8 +105,6 @@ if __name__ == '__main__':
     merge_data(original['cols-2-upload'], phone_1_cells)
     merge_data(original['cols-2-upload'], phone_2_cells)
     merge_data(original['cols-2-upload'], email_cells)
-
-    fix_card_numbers(original['cols-2-upload'], 'A')
 
     new_wb = Workbook()
     ws = new_wb.active
@@ -122,7 +126,7 @@ if __name__ == '__main__':
 #         for cell in sheet[row]:
 #             if cell.column not in data or data[cell.column] == 'NULL':
 #                 data[cell.column] = cell.value
-#     with threading.Lock():
+#     with :
 #         for cell in sheet[rows[-1]]:
 #             cell.value = data[cell.column]
 #         for row in rows[:-1]:
