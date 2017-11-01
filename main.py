@@ -7,22 +7,29 @@ rows_to_pass = set()
 
 
 def fix_card_numbers(sheet, key):
-    for i, col in enumerate(sheet[key]):
-        if i == 0: continue
+    for i, col in enumerate(sheet[key],start=1):
+        if i == 1: continue
         num = str(col.value)
         if not re.match('^\d+$', num):
+            print(i, num)
             rows_to_pass.add(i)
 
 
-def fix_phones(sheet, key):
+def fix_phones(sheet, key1, key2):
     phones = defaultdict(int)
-    for i, col in enumerate(sheet[key]):
-        if i == 0 or i in rows_to_pass: continue
+    for i, (col, col2) in enumerate(zip(sheet[key1], sheet[key2]), start=1):
+        if i == 1 or i in rows_to_pass: continue
         phone = str(col.value)
         phone = re.sub('[^\d]', '', phone)
+
         if phone is None or phone == '':
-            col.value = 'NULL'
-            continue
+            phone2 = str(col2.value)
+            phone2 = re.sub('[^\d]', '', phone2)
+            if phone2 is not None and phone2 != '':
+                phone = phone2
+            else:
+                col.value = 'NULL'
+                continue
         if re.match('^[^78]\d{9}$', phone):
             phone = '7{}'.format(phone)
             print('10 digit number + 7: {}'.format(phone))
@@ -41,16 +48,17 @@ def fix_phones(sheet, key):
 
 def fix_emails(sheet, key):
     emails = defaultdict(int)
-    for i, col in enumerate(sheet[key]):
-        if i == 0 or i in rows_to_pass: continue
+    for i, col in enumerate(sheet[key], start=1):
+        if i == 1 or i in rows_to_pass: continue
         email = col.value
         if email is None or type(email) == int or '@' not in email:
             col.value = 'NULL'
             continue
+        email = re.sub('\s', '', email)
         awoid_domains = ['bj-gold.ru', 'bronnitsy.com', 'noemail.ru', 'no@mail.ru']
         if any(domain in email for domain in awoid_domains):
+            print(i)
             rows_to_pass.add(i)
-        re.sub('\s+', '', email)
         emails[email] += 1
         col.value = email
     return emails
@@ -59,12 +67,13 @@ def fix_emails(sheet, key):
 def find_equal(sheet, key, items):
     repeated_items = {k: value for k, value in items.items() if value > 1}
     repeated_rows = defaultdict(list)
-    for i, col in enumerate(sheet[key]):
-        if i == 0 or i in rows_to_pass: continue
+    for i, col in enumerate(sheet[key], start=1):
+        if i == 1 or i in rows_to_pass: continue
         item = str(col.value)
         if item in repeated_items.keys():
             repeated_rows[item].append(i)
     for k in repeated_rows:
+        print(k)
         repeated_rows[k].sort(key=lambda index: sheet[index][0].value)
     return repeated_rows
 
@@ -90,30 +99,33 @@ def merge_data(sheet, repeated_data):
 
 
 if __name__ == '__main__':
-
+    print('Loading file started')
     original = load_workbook('main.xlsx')
-
+    print('Loading file finished')
     fix_card_numbers(original['cols-2-upload'], 'A')
-    phones_2 = fix_phones(original['cols-2-upload'], 'F')
-    phones_1 = fix_phones(original['cols-2-upload'], 'E')
-    emails = fix_emails(original['cols-2-upload'], 'D')
+    print('Fix phones started')
+    phones_1 = fix_phones(original['cols-2-upload'], 'E', 'F')
+    print('Fix phones finished')
+    print('Fix emails started')
 
-    phone_2_cells = find_equal(original['cols-2-upload'], 'F', phones_2)
+    emails = fix_emails(original['cols-2-upload'], 'D')
+    print('Fix emails finished')
     phone_1_cells = find_equal(original['cols-2-upload'], 'E', phones_1)
     email_cells = find_equal(original['cols-2-upload'], 'D', emails)
 
     merge_data(original['cols-2-upload'], phone_1_cells)
-    merge_data(original['cols-2-upload'], phone_2_cells)
     merge_data(original['cols-2-upload'], email_cells)
+
+    fix_card_numbers(original['cols-2-upload'], 'A')
 
     new_wb = Workbook()
     ws = new_wb.active
     ws.title = 'cols-2-upload'
-    rs = [r for i, r in enumerate(original['cols-2-upload'].rows) if i not in rows_to_pass]
+    rs = [r for i, r in enumerate(original['cols-2-upload'].rows, start=1) if i not in rows_to_pass]
     for i, r in enumerate(rs, start=1):
         for j, c in enumerate(r, start=1):
             ws.cell(row=i, column=j, value=c.value)
-    new_wb.save('updated.xlsx')
+    new_wb.save('updated_1.xlsx')
 
 
 # import threading
