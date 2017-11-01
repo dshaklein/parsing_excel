@@ -22,10 +22,10 @@ def fix_phones(sheet, key1, key2):
         phone = str(col.value)
         phone = re.sub('[^\d]', '', phone)
 
-        if phone is None or phone == '':
+        if phone == 'None' or phone == '':
             phone2 = str(col2.value)
             phone2 = re.sub('[^\d]', '', phone2)
-            if phone2 is not None and phone2 != '':
+            if phone2 != 'None' and phone2 != '':
                 phone = phone2
             else:
                 col.value = 'NULL'
