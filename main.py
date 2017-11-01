@@ -2,9 +2,10 @@
 import re
 from openpyxl import load_workbook, Workbook
 from collections import defaultdict
+from tqdm import tqdm
 
 rows_to_pass = set()
-card_numbers = []
+card_numbers = [0, 0]
 
 
 def fix_card_numbers(sheet, key):
@@ -79,7 +80,7 @@ def find_equal(sheet, key, items):
             repeated_rows[item].append(i)
     for k in repeated_rows:
         print(k)
-        repeated_rows[k].sort(key=lambda index: card_numbers[index])
+        repeated_rows[k].sort(key=lambda index: int(card_numbers[index]))
     return repeated_rows
 
 
@@ -89,7 +90,7 @@ def merge_data(sheet, repeated_data):
     # заменяем более современными значениями
     # ячейки в расположены по возрастанию, поэтому будет идти от самой последней к самой первой
     # и заполнять пропуски, если они имеются
-    for key, rows in repeated_data.items():
+    for key, rows in tqdm(repeated_data.items()):
         data = {}
         for row in rows[::-1]:
             for cell in sheet[row]:
